@@ -1,0 +1,3 @@
+[submodule "simhash"]
+	path = simhash
+	url = git@github.com:yanglei9211/simhash.git
