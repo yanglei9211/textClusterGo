@@ -1,21 +1,17 @@
 package main
 
 import (
-	/*
-	"cluster/controller"
-	"runtime"
 	"github.com/astaxie/beego"
-	*/
-	"cluster/simhash"
-	"fmt"
+	"runtime"
+	"cluster/controller"
 )
 
 func main() {
-	/*
+
 	controller.Init()
 	runtime.GOMAXPROCS(runtime.NumCPU() - 1)
 	beego.Run()
-	*/
+	/*
 	ss := []string{"放大是否打算","发生的旅客合法的顺口溜合法的索科洛夫哈萨克了会发生", "11223344", "aabbcc",
 		"AABBCC", "AaBbcC"}
 	res := []simhash.Simhash{}
@@ -39,4 +35,5 @@ func main() {
 	fmt.Println(ts.Value())
 	ans := s.GetNearDups(ts)
 	fmt.Println(ans)
+	*/
 }

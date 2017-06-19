@@ -23,3 +23,19 @@ func (sg * TestGetter) Post() {
 		"item": res,
 	})
 }
+
+func (sg *TestGetter) Put() {
+	fmt.Println("put!!!!!")
+	res := "bbbcccaaa"
+	sg.writeReponse(map[string]interface{}{
+		"item": res,
+	})
+}
+
+func (sg *TestGetter) Delete() {
+	fmt.Println("delete!!!!!")
+	res := "cccaaabbb"
+	sg.writeReponse(map[string]interface{}{
+		"item": res,
+	})
+}
