@@ -5,6 +5,7 @@ import (
 )
 
 func Init() {
+	InitManager()
 	for _, handler := range allUrls{
 		beego.Router(handler.url, handler.controller)
 	}
