@@ -22,6 +22,13 @@ func (c *Controller) GetDb() *mgo.Database {
 	return c.Session.Copy().DB(c.DBName)
 }
 
+func Init() {
+	InitManager()
+	for _, handler := range allUrls{
+		beego.Router(handler.url, handler.controller)
+	}
+}
+
 func InitManager() {
 	appConfig := beego.AppConfig
 	dbHost := appConfig.String("db_host")
