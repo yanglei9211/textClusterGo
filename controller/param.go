@@ -67,3 +67,10 @@ func genUnionParam(c beego.Controller) *Param {
 	mustInt(&uparam.Cid, input.Query("clus_id"))
 	return uparam
 }
+
+func genReplaceParam(c beego.Controller) *Param {
+	input := c.Ctx.Input
+	uparam := new(Param)
+	mustInt(&uparam.Tid, input.Query("text_id"))
+	return uparam
+}

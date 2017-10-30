@@ -11,4 +11,5 @@ type UrlHandler struct {
 
 var allUrls = []UrlHandler{
 	UrlHandler{"/test", &ClusterGetter{}},
+	UrlHandler{"/ques", &ClusterGetter{}},
 }

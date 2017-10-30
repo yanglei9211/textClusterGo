@@ -12,12 +12,23 @@ type ClusterGetter struct {
 func (c *ClusterGetter) Post() {
 	input := c.Ctx.Input
 	action := input.Query("action")
-	fmt.Println("post")
-	fmt.Println(action)
-	c.writeReponse(map[string]interface{}{
-		"item": "aabbcc",
-	})
+	if action == ""
+
+
+	//fmt.Println("post")
+	//fmt.Println(action)
+	//c.writeReponse(map[string]interface{}{
+	//	"item": "aabbcc",
+	//})
 }
+
+//func (c *ClusterGetter) Post() {
+//	param := genClusterParam(c.Controller)
+//	res := Manager.QuesCluster(param.Text)
+//	c.writeReponse(map[string]interface{}{
+//		"data": res,
+//	})
+//}
 
 func (c *ClusterGetter) clusterQues(edu int, quesId, quesData string) (err error) {
 	defer func() {
