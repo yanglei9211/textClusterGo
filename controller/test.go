@@ -16,7 +16,7 @@ func (sg *TestGetter) Get() {
 	})
 }
 
-func (sg * TestGetter) Post() {
+func (sg *TestGetter) Post() {
 	fmt.Println("post!!!!!")
 	res := "cccbbbaaa"
 	sg.writeReponse(map[string]interface{}{

@@ -5,8 +5,8 @@ import (
 )
 
 type UrlHandler struct {
-	url			string
-	controller	beego.ControllerInterface
+	url        string
+	controller beego.ControllerInterface
 }
 
 var allUrls = []UrlHandler{

@@ -1,9 +1,9 @@
 package controller
 
 import (
+	"encoding/json"
 	"github.com/astaxie/beego"
 	"gopkg.in/mgo.v2/bson"
-	"encoding/json"
 	"strconv"
 )
 
@@ -15,7 +15,7 @@ func (b *BasicController) writeReponse(r map[string]interface{}) {
 	response, err := json.Marshal(
 		map[string]interface{}{
 			"status": 1,
-			"data": r,
+			"data":   r,
 		})
 	if err != nil {
 		panic(err)

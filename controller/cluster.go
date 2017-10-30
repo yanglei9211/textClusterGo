@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	//"gopkg.in/mgo.v2/bson"
 )
 
 type ClusterGetter struct {
@@ -26,13 +27,13 @@ func (c *ClusterGetter) clusterQues(edu int, quesId, quesData string) (err error
 	}()
 	db := Manager.GetDb()
 	defer db.Session.Close()
-	var node struct{}
+	//var node struct{}
 
-	if notFound := db.C("text_info").Find(bson.M{"t_id": quesId}).Select(
-		bson.M{"_id": 1}).One(node); notFound {
-
-	} else {
-		panic(fmt.Sprintf("t_id: %s 已经存在", quesId))
-	}
+	//if notFound := db.C("text_info").Find(bson.M{"t_id": quesId}).Select(
+	//	bson.M{"_id": 1}).One(node); notFound {
+	//	fmt.Println("1")
+	//} else {
+	//	panic(fmt.Sprintf("t_id: %s 已经存在", quesId))
+	//}
 	return nil
 }
