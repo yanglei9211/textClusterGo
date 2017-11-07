@@ -2,28 +2,26 @@
 
 package controller
 
-
 type Getter func(keys Keys) (Result, error)
 
-type Result map[int]interface{}
-type Keys []int
+type Result map[uint64]interface{}
+type Keys []uint64
 
 type entry struct {
-	key int
+	key   uint64
 	value interface{}
 }
 
 type Cache struct {
 	getter Getter
-	data map[int]interface{}
+	data   map[uint64]interface{}
 }
 
 func NewCache() *Cache {
 	c := Cache{}
-	c.data = make(map[int]interface{})
+	c.data = make(map[uint64]interface{})
 	return &c
 }
-
 
 func (c *Cache) Get(keys Keys, getter Getter) (Result, error) {
 	result := make(Result)

@@ -6,55 +6,127 @@ import (
 	"github.com/astaxie/beego"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"sort"
 	"strings"
 	"time"
 )
 
 type Controller struct {
+	// 应该是bl吧
 	Index   *simhash.SimhashIndex
 	Session *mgo.Session
 	DBName  string
+	Cache   *Cache
+}
+
+type Doc struct {
+	TextId    int    `bson:"text_id"`
+	Rep       bool   `bson:"rep"`
+	RepTextId int    `bson:"rep_text_id"`
+	Deleted   bool   `bson:"deleted"`
+	Text      string `bson:"text"`
+	Ctime     int64  `bson:"ctime"`
+	Mtime     int64  `bson:"mtime"`
 }
 
 func (c *Controller) GetDb() *mgo.Database {
 	return c.Session.Copy().DB(c.DBName)
 }
 
-func (c *Controller) QuesCluster(Text string) (res []string, err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = fmt.Errorf("%v", e)
-		}
-	}()
-	res = c.Index.GetNearDups(NewSimhash(Text))
-	return res, nil
+func (c *Controller) QuesClusterByText(TextId int, Text string) (sort.IntSlice, error) {
+	s := c.NewSim(Text)
+	return c.QuesCluster(TextId, s)
 }
 
-func (c *Controller) Add(TextId, Text string) (err error) {
+func (c *Controller) AddBk(TextId int, Text string) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("%v", e)
 		}
 	}()
-	tpNode := NewIndexNode(NewSimhash(Text), TextId)
-	c.Index.Add(tpNode)
+	tpNode := NewIndexNode(c.NewSim(Text), TextId)
+	c.Index.Add(*tpNode)
 	return nil
 }
 
-func (c *Controller) Del(TextId, Text string) (err error) {
+func (c *Controller) QuesCluster(TextId int, s *simhash.Simhash) (res sort.IntSlice, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("%v", e)
 		}
 	}()
-	sim := NewSimhash(Text)
-	dups := c.Index.GetNearDups(sim)
+	dups := c.Index.GetNearDups(*s)
+	res = make(sort.IntSlice, len(dups))
+	for i, s := range dups {
+		fmt.Sscanf(s, "%d", &res[i])
+	}
+	res.Sort()
+	res = filterTextId(res, TextId)
+	return res, nil
+}
+
+func (c *Controller) Add(TextId int, s *simhash.Simhash) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
+	tpNode := NewIndexNode(s, TextId)
+	c.Index.Add(*tpNode)
+	return nil
+}
+
+func (c *Controller) Del(TextId int, Text string) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
+	sim := c.NewSim(Text)
+	dups := c.Index.GetNearDups(*sim)
 	if len(dups) == 0 {
 		panic("被删除元素不存在")
 	}
 	tpNode := NewIndexNode(sim, TextId)
-	c.Index.Del(tpNode)
+	c.Index.Del(*tpNode)
 	return nil
+}
+
+func (c *Controller) Cluster(TextId, RepId int) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
+	db := c.GetDb()
+	db.Session.Close()
+	selector := bson.M{"text_id": TextId}
+	data := bson.M{"rep_id": RepId}
+	db.C("doc").Update(selector, data)
+	return nil
+}
+
+func (c *Controller) NewSim(Text string) *simhash.Simhash {
+	newSimhash := func(text string) *simhash.Simhash {
+		sim := simhash.Simhash{}
+		sim.Init(text)
+		return &sim
+	}
+
+	md52text = make(map[uint64]string)
+	m := hashfunc(Text)
+	md52text[m] = Text
+	keys := Keys{m}
+	res, err := c.Cache.Get(keys, CacheGetter)
+	if err != nil {
+		fmt.Println("cache error!!!!!!")
+		res := newSimhash(Text)
+		return res
+	} else {
+		fmt.Println("use cache!!!!!!!")
+		res := NewSimhashByVal(res[m].(uint64))
+		return res
+	}
 }
 
 var Manager Controller
@@ -78,24 +150,25 @@ func InitManager() {
 	db := session.DB(dbName)
 	simhashIndex := InitIndex(db, collectionName)
 	Manager = Controller{Index: simhashIndex, Session: session, DBName: dbName}
+	Manager.Cache = NewCache()
 }
 
 func InitIndex(db *mgo.Database, collectionName string) *simhash.SimhashIndex {
 	beego.Info("begin to build index")
 	stTime := time.Now().UnixNano() / 1e6
 	var simDoc struct {
-		TextId  string    `bson:"text_id"`
-		Simhash string    `bson:"simhash"`
+		TextId  string `bson:"text_id"`
+		Simhash string `bson:"simhash"`
 	}
 
-	q := db.C(collectionName).Find(bson.M{}).Select(
+	q := db.C(collectionName).Find(bson.M{"rep": true}).Select(
 		bson.M{"simhash": 1, "text_id": 1})
 	totCnt, _ := q.Count()
 	beego.Info(fmt.Sprintf("index get %d docs", totCnt))
 	simNodes := make([]simhash.IndexNode, 0, totCnt)
 	iter := q.Iter()
 	for iter.Next(&simDoc) {
-		simNodes = append(simNodes, simhash.IndexNode{Sim: NewSimhashByHew(simDoc.Simhash), ObjId: simDoc.TextId})
+		simNodes = append(simNodes, simhash.IndexNode{Sim: *NewSimhashByHex(simDoc.Simhash), ObjId: simDoc.TextId})
 	}
 	resIndex := simhash.SimhashIndex{}
 	resIndex.Init(simNodes)
@@ -105,20 +178,21 @@ func InitIndex(db *mgo.Database, collectionName string) *simhash.SimhashIndex {
 	return &resIndex
 }
 
-func NewSimhash(data string) simhash.Simhash {
-	sim := simhash.Simhash{}
-	sim.Init(data)
-	return sim
-}
-
-func NewSimhashByHew(h string) simhash.Simhash {
+func NewSimhashByHex(h string) *simhash.Simhash {
 	sim := simhash.Simhash{}
 	sim.InitByHex(h)
-	return sim
+	return &sim
 }
 
-func NewIndexNode(sim simhash.Simhash, ObjId string) simhash.IndexNode {
+func NewSimhashByVal(v uint64) *simhash.Simhash {
+	sim := simhash.Simhash{}
+	sim.InitByValue(v)
+	return &sim
+}
+
+func NewIndexNode(sim *simhash.Simhash, TextId int) *simhash.IndexNode {
+	ObjId := fmt.Sprintf("%d", TextId)
 	node := simhash.IndexNode{}
-	node.Init(sim, ObjId)
-	return node
+	node.Init(*sim, ObjId)
+	return &node
 }

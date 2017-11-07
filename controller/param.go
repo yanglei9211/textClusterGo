@@ -74,3 +74,10 @@ func genReplaceParam(c beego.Controller) *Param {
 	mustInt(&uparam.Tid, input.Query("text_id"))
 	return uparam
 }
+
+func genDeleteParam(c beego.Controller) *Param {
+	input := c.Ctx.Input
+	uparam := new(Param)
+	mustInt(&uparam.Tid, input.Query("text_id"))
+	return uparam
+}
