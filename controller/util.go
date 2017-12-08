@@ -8,13 +8,14 @@ import (
 	"github.com/astaxie/beego"
 	"gopkg.in/mgo.v2/bson"
 	"strconv"
+	"time"
 )
 
 type BasicController struct {
 	beego.Controller
 }
 
-func (b *BasicController) writeReponse(r map[string]interface{}) {
+func (b *BasicController) writeResponse(r map[string]interface{}) {
 	response, err := json.Marshal(
 		map[string]interface{}{
 			"status": 1,
@@ -110,4 +111,10 @@ func filterTextId(ids []int, exId int) []int {
 		}
 	}
 	return res
+}
+
+func getCurTime() float64 {
+	t := time.Now().Unix()
+	rt := float64(t)
+	return rt
 }

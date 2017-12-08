@@ -36,7 +36,24 @@ func genParam(c beego.Controller) *Param {
 	return param
 }
 
+func genAddParam(c beego.Controller) *Param {
+	input := c.Ctx.Input
+	cparam := new(Param)
+	mustInt(&cparam.Tid, input.Query("text_id"))
+	cparam.Text = input.Query("text")
+	return cparam
+}
+
 func genClusterParam(c beego.Controller) *Param {
+	input := c.Ctx.Input
+	cparam := new(Param)
+	mustInt(&cparam.Tid, input.Query("text_id"))
+	mustInt(&cparam.Cid, input.Query("clus_id"))
+	cparam.Text = input.Query("text")
+	return cparam
+}
+
+func genAutoClusterParam(c beego.Controller) *Param {
 	input := c.Ctx.Input
 	cparam := new(Param)
 	mustInt(&cparam.Tid, input.Query("text_id"))

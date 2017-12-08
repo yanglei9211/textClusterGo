@@ -11,7 +11,7 @@ type TestGetter struct {
 func (sg *TestGetter) Get() {
 	fmt.Println("get!!!!")
 	res := "aaabbbccc"
-	sg.writeReponse(map[string]interface{}{
+	sg.writeResponse(map[string]interface{}{
 		"item": res,
 	})
 }
@@ -19,7 +19,7 @@ func (sg *TestGetter) Get() {
 func (sg *TestGetter) Post() {
 	fmt.Println("post!!!!!")
 	res := "cccbbbaaa"
-	sg.writeReponse(map[string]interface{}{
+	sg.writeResponse(map[string]interface{}{
 		"item": res,
 	})
 }
@@ -27,7 +27,7 @@ func (sg *TestGetter) Post() {
 func (sg *TestGetter) Put() {
 	fmt.Println("put!!!!!")
 	res := "bbbcccaaa"
-	sg.writeReponse(map[string]interface{}{
+	sg.writeResponse(map[string]interface{}{
 		"item": res,
 	})
 }
@@ -35,7 +35,7 @@ func (sg *TestGetter) Put() {
 func (sg *TestGetter) Delete() {
 	fmt.Println("delete!!!!!")
 	res := "cccaaabbb"
-	sg.writeReponse(map[string]interface{}{
+	sg.writeResponse(map[string]interface{}{
 		"item": res,
 	})
 }

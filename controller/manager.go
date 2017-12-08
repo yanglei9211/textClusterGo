@@ -13,10 +13,11 @@ import (
 
 type Controller struct {
 	// 应该是bl吧
-	Index   *simhash.SimhashIndex
-	Session *mgo.Session
-	DBName  string
-	Cache   *Cache
+	Index          *simhash.SimhashIndex
+	Session        *mgo.Session
+	DBName         string
+	CollectionName string
+	Cache          *Cache
 }
 
 type Doc struct {
@@ -27,6 +28,7 @@ type Doc struct {
 	Text      string `bson:"text"`
 	Ctime     int64  `bson:"ctime"`
 	Mtime     int64  `bson:"mtime"`
+	Sim       string `bson:"simhash"`
 }
 
 func (c *Controller) GetDb() *mgo.Database {
@@ -65,6 +67,18 @@ func (c *Controller) QuesCluster(TextId int, s *simhash.Simhash) (res sort.IntSl
 	return res, nil
 }
 
+func (c *Controller) AddWithText(TextId int, Text string) (err error) {
+	sim := c.NewSim(Text)
+	err = c.Add(TextId, sim)
+	return err
+}
+
+func (c *Controller) AddWithSim(TextId int, Sim string) (err error) {
+	s := NewSimhashByHex(Sim)
+	err = c.Add(TextId, s)
+	return err
+}
+
 func (c *Controller) Add(TextId int, s *simhash.Simhash) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -76,7 +90,7 @@ func (c *Controller) Add(TextId int, s *simhash.Simhash) (err error) {
 	return nil
 }
 
-func (c *Controller) Del(TextId int, Text string) (err error) {
+func (c *Controller) DelWithText(TextId int, Text string) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("%v", e)
@@ -87,6 +101,18 @@ func (c *Controller) Del(TextId int, Text string) (err error) {
 	if len(dups) == 0 {
 		panic("被删除元素不存在")
 	}
+	tpNode := NewIndexNode(sim, TextId)
+	c.Index.Del(*tpNode)
+	return nil
+}
+
+func (c *Controller) DelWithSim(TextId int, Sim string) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
+	sim := NewSimhashByHex(Sim)
 	tpNode := NewIndexNode(sim, TextId)
 	c.Index.Del(*tpNode)
 	return nil
@@ -149,7 +175,7 @@ func InitManager() {
 	dbName := strings.TrimSpace(appConfig.String("db_name"))
 	db := session.DB(dbName)
 	simhashIndex := InitIndex(db, collectionName)
-	Manager = Controller{Index: simhashIndex, Session: session, DBName: dbName}
+	Manager = Controller{Index: simhashIndex, Session: session, DBName: dbName, CollectionName: collectionName}
 	Manager.Cache = NewCache()
 }
 
