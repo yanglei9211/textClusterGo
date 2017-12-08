@@ -18,7 +18,7 @@ func (c *ClusterGetter) Post() {
 	action := input.Query("action")
 	var err error
 	if action == "ques" {
-		param := genClusterParam(c.Controller)
+		param := genAutoClusterParam(c.Controller)
 		res, err := Manager.QuesClusterByText(param.Tid, param.Text)
 		if err != nil {
 			c.writeError(err.Error())
@@ -42,10 +42,10 @@ func (c *ClusterGetter) Post() {
 
 	} else if action == "auto_cluster" {
 		param := genAutoClusterParam(c.Controller)
-		if err = c.AutoCluster(param.Tid, param.Text); err != nil {
+		if tarId, err := c.AutoCluster(param.Tid, param.Text); err != nil {
 			c.writeError(err.Error())
 		} else {
-			c.writeResponse(map[string]interface{}{"data": ""})
+			c.writeResponse(map[string]interface{}{"data": tarId})
 		}
 	} else if action == "delete" {
 		param := genDeleteParam(c.Controller)
@@ -96,6 +96,10 @@ func (c *ClusterGetter) AddDoc(TextId int, Text string) error {
 	db := Manager.GetDb()
 	defer db.Session.Close()
 	collection_name := Manager.CollectionName
+
+	if idExists := emptyTextId(db, collection_name, TextId); idExists != nil {
+		return idExists
+	}
 	cur := getCurTime()
 	selector := bson.M{"text_id": TextId}
 	data := bson.M{"$set": bson.M{"rep": true, "rep_text_id": TextId, "text": Text,
@@ -105,10 +109,16 @@ func (c *ClusterGetter) AddDoc(TextId int, Text string) error {
 }
 
 func (c *ClusterGetter) Cluster(ClusId, TextId int, Text string) error {
-	sim := Manager.NewSim(Text)
 	db := Manager.GetDb()
 	defer db.Session.Close()
 	collection_name := Manager.CollectionName
+	if idExists := emptyTextId(db, collection_name, TextId); idExists != nil {
+		return idExists
+	}
+	if clusDoc, found := hasTextId(db, collection_name, ClusId); found != nil || !clusDoc.Rep {
+		return fmt.Errorf(fmt.Sprintf("目标text_id: %d状态不符合或不存在", ClusId))
+	}
+	sim := Manager.NewSim(Text)
 	cur := getCurTime()
 	selector := bson.M{"text_id": TextId}
 	data := bson.M{"$set": bson.M{"rep": false, "rep_text_id": ClusId, "text": Text,
@@ -117,23 +127,28 @@ func (c *ClusterGetter) Cluster(ClusId, TextId int, Text string) error {
 	return nil
 }
 
-func (c *ClusterGetter) AutoCluster(TextId int, Text string) error {
+func (c *ClusterGetter) AutoCluster(TextId int, Text string) (int, error) {
+	db := Manager.GetDb()
+	defer db.Session.Close()
+	collection_name := Manager.CollectionName
+	if idExists := emptyTextId(db, collection_name, TextId); idExists != nil {
+		return -1, idExists
+	}
 	itemSim := Manager.NewSim(Text)
 	dups, err := Manager.QuesCluster(TextId, itemSim)
 	if err != nil {
-		return err
+		return -1, err
 	}
-	db := Manager.GetDb()
-	defer db.Session.Close()
 	var selector, data bson.M
 	//selector = bson.M{"text_id": TextId}
 	//data = bson.M{"$set": bson.M{"text": Text}}
 	//db.C("raw").Upsert(selector, data)
-	collection_name := Manager.CollectionName
+	var tarId int
 	if len(dups) == 0 {
+		tarId = TextId
 		err = Manager.Add(TextId, itemSim)
 		if err != nil {
-			return err
+			return -1, err
 		} else {
 			selector = bson.M{"text_id": TextId}
 			//cur := time.Now().Unix()
@@ -143,15 +158,15 @@ func (c *ClusterGetter) AutoCluster(TextId int, Text string) error {
 			db.C(collection_name).Upsert(selector, data)
 		}
 	} else {
-		target := dups[0]
+		tarId = dups[0]
 		//cur := time.Now().Unix()
 		cur := getCurTime()
 		selector = bson.M{"text_id": TextId}
-		data = bson.M{"$set": bson.M{"rep": false, "rep_text_id": target,
+		data = bson.M{"$set": bson.M{"rep": false, "rep_text_id": tarId,
 			"text": Text, "ctime": cur, "mtime": cur, "deleted": false, "simhash": itemSim.ValueHex()}}
 		db.C(collection_name).Upsert(selector, data)
 	}
-	return nil
+	return tarId, nil
 }
 
 func (c *ClusterGetter) DeleteDoc(TextId int) error {
@@ -163,13 +178,20 @@ func (c *ClusterGetter) DeleteDoc(TextId int) error {
 		return notFound
 		//panic(fmt.Sprintf("text_id: %s 不存在", TextId))
 	} else {
-		if err := Manager.DelWithSim(TextId, doc.Sim); err == nil {
-			cur := getCurTime()
-			selector := bson.M{"text_id": TextId}
-			data := bson.M{"$set": bson.M{"deleted": true, "mtime": cur}}
-			db.C(collection_name).Update(selector, data)
+		if doc.Rep {
+			// 如果是代表,连同dups全部删除
+			if err := Manager.DelWithSim(TextId, doc.Sim); err == nil {
+				selector := bson.M{"rep_text_id": TextId}
+				data := bson.M{"$set": bson.M{"deleted": true, "mtime": getCurTime()}}
+				db.C(collection_name).UpdateAll(selector, data)
+			} else {
+				return err
+			}
 		} else {
-			return err
+			// 否则,只删除目标文档
+			selector := bson.M{"text_id": TextId}
+			data := bson.M{"$set": bson.M{"deleted": true, "mtime": getCurTime()}}
+			db.C(collection_name).Update(selector, data)
 		}
 	}
 	return nil
@@ -205,10 +227,10 @@ func (c *ClusterGetter) Union(TextId, ClusId int) error {
 	var doc, clusDoc Doc
 	var notFound error
 	if notFound = db.C(collection_name).Find(bson.M{"text_id": TextId, "rep": true, "deleted": false}).One(&doc); notFound != nil {
-		return notFound
+		return fmt.Errorf(fmt.Sprintf("被合并text_id: %d 状态不符合或不存在", TextId))
 	}
 	if notFound = db.C(collection_name).Find(bson.M{"text_id": ClusId, "rep": true, "deleted": false}).One(&clusDoc); notFound != nil {
-		return notFound
+		return fmt.Errorf(fmt.Sprintf("目标text_id: %d 状态不符合或不存在", ClusId))
 	}
 	if err := Manager.DelWithSim(TextId, doc.Sim); err == nil {
 		cur := getCurTime()

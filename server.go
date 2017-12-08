@@ -9,8 +9,7 @@ import (
 func main() {
 
 	controller.Init()
-	//runtime.GOMAXPROCS(runtime.NumCPU() - 1)
-	runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(runtime.NumCPU() - 1)
 	beego.Run()
 	/*
 		ss := []string{"放大是否打算","发生的旅客合法的顺口溜合法的索科洛夫哈萨克了会发生", "11223344", "aabbcc",

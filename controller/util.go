@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego"
+	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"strconv"
 	"time"
@@ -117,4 +118,23 @@ func getCurTime() float64 {
 	t := time.Now().Unix()
 	rt := float64(t)
 	return rt
+}
+
+func hasTextId(db *mgo.Database, collectionName string, TextId int) (*Doc, error) {
+	var doc Doc
+	if notFound := db.C(collectionName).Find(bson.M{"text_id": TextId}).One(&doc); notFound != nil {
+		err := fmt.Errorf(fmt.Sprintf("text_id: %d not found", TextId))
+		return nil, err
+	} else {
+		return &doc, nil
+	}
+}
+
+func emptyTextId(db *mgo.Database, collectionName string, TextId int) error {
+	var doc Doc
+	if notFound := db.C(collectionName).Find(bson.M{"text_id": TextId}).One(&doc); notFound == nil {
+		err := fmt.Errorf(fmt.Sprintf("exists text_id: %d", TextId))
+		return err
+	}
+	return nil
 }

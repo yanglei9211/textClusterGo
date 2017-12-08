@@ -183,18 +183,19 @@ func InitIndex(db *mgo.Database, collectionName string) *simhash.SimhashIndex {
 	beego.Info("begin to build index")
 	stTime := time.Now().UnixNano() / 1e6
 	var simDoc struct {
-		TextId  string `bson:"text_id"`
+		TextId  int    `bson:"text_id"`
 		Simhash string `bson:"simhash"`
 	}
 
-	q := db.C(collectionName).Find(bson.M{"rep": true}).Select(
+	q := db.C(collectionName).Find(bson.M{"rep": true, "deleted": false}).Select(
 		bson.M{"simhash": 1, "text_id": 1})
 	totCnt, _ := q.Count()
 	beego.Info(fmt.Sprintf("index get %d docs", totCnt))
 	simNodes := make([]simhash.IndexNode, 0, totCnt)
 	iter := q.Iter()
 	for iter.Next(&simDoc) {
-		simNodes = append(simNodes, simhash.IndexNode{Sim: *NewSimhashByHex(simDoc.Simhash), ObjId: simDoc.TextId})
+		simNodes = append(simNodes, simhash.IndexNode{Sim: *NewSimhashByHex(simDoc.Simhash),
+			ObjId: fmt.Sprintf("%d", simDoc.TextId)})
 	}
 	resIndex := simhash.SimhashIndex{}
 	resIndex.Init(simNodes)
